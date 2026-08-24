@@ -5,6 +5,12 @@ const Favorite = require('../models/Favorite');
 const Notification = require('../models/Notification');
 const Category = require('../models/Category');
 
+/**
+ * Genera los datos del panel (dashboard) para un usuario regular:
+ * inscripciones confirmadas, próximas actividades, favoritos y notificaciones no leídas.
+ * @param {string} userId - Identificador del usuario.
+ * @returns {Promise<Object>} Resumen del dashboard del usuario.
+ */
 async function getUserDashboard(userId) {
   const [registrations, favoritesCount, unreadNotificationsCount] = await Promise.all([
     Registration.find({ user: userId, status: 'confirmed' })
@@ -20,6 +26,7 @@ async function getUserDashboard(userId) {
     Notification.countDocuments({ user: userId, read: false }),
   ]);
 
+  // Fecha actual usada para filtrar las inscripciones a actividades futuras.
   const now = new Date();
   const upcomingRegistrations = registrations.filter(
     (r) => r.event && new Date(r.event.date) >= now
@@ -34,8 +41,15 @@ async function getUserDashboard(userId) {
   };
 }
 
+/**
+ * Genera los datos del panel (dashboard) para un organizador:
+ * total de actividades, actividades activas/canceladas y participantes totales.
+ * @param {string} organizerId - Identificador del organizador.
+ * @returns {Promise<Object>} Resumen del dashboard del organizador.
+ */
 async function getOrganizerDashboard(organizerId) {
   const events = await Event.find({ organizer: organizerId }).sort({ date: 1 });
+  // Ids de las actividades del organizador, usados para contar inscripciones.
   const eventIds = events.map((e) => e._id);
 
   const [totalRegistrations, activeCount, cancelledCount] = await Promise.all([
@@ -53,6 +67,11 @@ async function getOrganizerDashboard(organizerId) {
   };
 }
 
+/**
+ * Genera los datos del panel (dashboard) para un administrador:
+ * estadísticas globales de usuarios, organizadores, actividades, inscripciones y categorías.
+ * @returns {Promise<Object>} Resumen del dashboard administrativo.
+ */
 async function getAdminDashboard() {
   const [
     totalUsers,
@@ -83,6 +102,7 @@ async function getAdminDashboard() {
   };
 }
 
+// Exporta las funciones del servicio de dashboards por rol.
 module.exports = {
   getUserDashboard,
   getOrganizerDashboard,

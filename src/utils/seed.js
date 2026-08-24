@@ -9,7 +9,15 @@ const Registration = require('../models/Registration');
 const Favorite = require('../models/Favorite');
 const Notification = require('../models/Notification');
 
+/**
+ * Script de poblamiento (seed) de la base de datos.
+ * Conecta a MongoDB, limpia todas las colecciones existentes y crea
+ * usuarios, categorías, actividades, una inscripción y un favorito de prueba.
+ * Termina el proceso con código 0 en éxito o 1 en caso de error.
+ * @returns {Promise<void>}
+ */
 async function seed() {
+  // URI de conexión a MongoDB, tomada de las variables de entorno o un valor local por defecto.
   const mongoUri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/communityhub';
   console.log(`Conectando a MongoDB en: ${mongoUri}...`);
 
@@ -17,7 +25,6 @@ async function seed() {
     await mongoose.connect(mongoUri);
     console.log('Conexión exitosa a la base de datos.');
 
-    // Limpiar colecciones
     console.log('Limpiando colecciones existentes...');
     await Promise.all([
       User.deleteMany({}),
@@ -28,10 +35,11 @@ async function seed() {
       Notification.deleteMany({}),
     ]);
 
-    // Crear usuarios de prueba
     console.log('Creando usuarios iniciales...');
+    // Contraseña de prueba compartida por los tres usuarios semilla, ya encriptada.
     const hashedPassword = await bcrypt.hash('password123', 10);
 
+    // Usuario administrador de prueba.
     const admin = await User.create({
       firstName: 'Admin',
       lastName: 'Sistema',
@@ -40,6 +48,7 @@ async function seed() {
       role: 'administrador',
     });
 
+    // Usuario organizador de prueba.
     const organizer = await User.create({
       firstName: 'Carlos',
       lastName: 'Mendoza',
@@ -48,6 +57,7 @@ async function seed() {
       role: 'organizador',
     });
 
+    // Usuario regular de prueba.
     const user = await User.create({
       firstName: 'Lucía',
       lastName: 'Gómez',
@@ -61,8 +71,8 @@ async function seed() {
     console.log(` - Organizador: organizer@communityhub.com / password123`);
     console.log(` - Usuario: user@communityhub.com / password123`);
 
-    // Crear categorías
     console.log('Creando categorías...');
+    // Datos iniciales de las categorías de actividades disponibles en la plataforma.
     const categoriesData = [
       { name: 'Tecnología', description: 'Talleres, charlas y hackathons de software y tecnología.' },
       { name: 'Deportes', description: 'Actividades físicas, partidos comunitarios y torneos.' },
@@ -74,21 +84,23 @@ async function seed() {
     const categories = await Category.insertMany(categoriesData);
     console.log(`Se crearon ${categories.length} categorías.`);
 
+    // Referencias a categorías específicas usadas al crear las actividades de ejemplo.
     const techCat = categories.find((c) => c.name === 'Tecnología');
     const sportsCat = categories.find((c) => c.name === 'Deportes');
     const cultureCat = categories.find((c) => c.name === 'Cultura & Arte');
 
-    // Fechas para eventos futuros
+    // Fecha de mañana, usada como fecha de la primera actividad de ejemplo.
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
 
+    // Fecha dentro de una semana, usada para la segunda actividad de ejemplo.
     const nextWeek = new Date();
     nextWeek.setDate(nextWeek.getDate() + 7);
 
+    // Fecha dentro de dos semanas, usada para la tercera actividad de ejemplo.
     const inTwoWeeks = new Date();
     inTwoWeeks.setDate(inTwoWeeks.getDate() + 14);
 
-    // Crear eventos de prueba
     console.log('Creando actividades iniciales...');
     const events = await Event.insertMany([
       {
@@ -131,13 +143,14 @@ async function seed() {
 
     console.log(`Se crearon ${events.length} actividades.`);
 
-    // Crear una inscripción y un favorito de prueba
+    // Inscripción de prueba del usuario regular en la primera actividad.
     await Registration.create({
       user: user._id,
       event: events[0]._id,
       status: 'confirmed',
     });
 
+    // Favorito de prueba del usuario regular sobre la primera actividad.
     await Favorite.create({
       user: user._id,
       event: events[0]._id,
@@ -152,4 +165,5 @@ async function seed() {
   }
 }
 
+// Ejecuta el script de poblamiento al invocar este archivo directamente.
 seed();

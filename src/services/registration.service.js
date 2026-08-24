@@ -4,6 +4,13 @@ const Event = require('../models/Event');
 const Notification = require('../models/Notification');
 const ApiError = require('../utils/ApiError');
 
+/**
+ * Inscribe a un usuario en una actividad, validando estado, fecha, duplicidad y cupos disponibles.
+ * Crea una notificación de confirmación al finalizar.
+ * @param {string} userId - Identificador del usuario que se inscribe.
+ * @param {string} eventId - Identificador de la actividad.
+ * @returns {Promise<Object>} Documento de inscripción creado o reactivado.
+ */
 async function registerToEvent(userId, eventId) {
   if (!mongoose.Types.ObjectId.isValid(eventId)) {
     throw ApiError.notFound('Actividad no encontrada');
@@ -22,7 +29,7 @@ async function registerToEvent(userId, eventId) {
     throw ApiError.badRequest('No puedes inscribirte a una actividad que ya ha transcurrido');
   }
 
-  // Verificar si el usuario ya está inscrito
+  // Inscripción previa del usuario en esta actividad (puede estar cancelada).
   const existingRegistration = await Registration.findOne({
     user: userId,
     event: eventId,
@@ -32,7 +39,6 @@ async function registerToEvent(userId, eventId) {
     throw ApiError.conflict('Ya te encuentras inscrito en esta actividad');
   }
 
-  // Comprobar disponibilidad de espacios
   const registeredCount = await Registration.countDocuments({
     event: eventId,
     status: 'confirmed',
@@ -44,6 +50,7 @@ async function registerToEvent(userId, eventId) {
 
   let registration;
   if (existingRegistration) {
+    // Reactiva una inscripción previamente cancelada en lugar de crear una nueva.
     existingRegistration.status = 'confirmed';
     await existingRegistration.save();
     registration = existingRegistration;
@@ -65,6 +72,12 @@ async function registerToEvent(userId, eventId) {
   return registration;
 }
 
+/**
+ * Cancela la inscripción confirmada de un usuario en una actividad y genera una notificación.
+ * @param {string} userId - Identificador del usuario.
+ * @param {string} eventId - Identificador de la actividad.
+ * @returns {Promise<void>}
+ */
 async function cancelRegistration(userId, eventId) {
   if (!mongoose.Types.ObjectId.isValid(eventId)) {
     throw ApiError.notFound('Actividad no encontrada');
@@ -92,9 +105,13 @@ async function cancelRegistration(userId, eventId) {
   });
 }
 
+/**
+ * Obtiene las inscripciones de un usuario, opcionalmente filtradas por estado.
+ * @param {string} userId - Identificador del usuario.
+ * @param {string} [statusFilter] - Estado a filtrar ("confirmed" o "cancelled"); si es inválido, se ignora.
+ * @returns {Promise<Array<Object>>} Lista de inscripciones del usuario.
+ */
 async function getUserRegistrations(userId, statusFilter) {
-  // Sin filtro: devuelve el historial completo (confirmed + cancelled)
-  // Con ?status=confirmed o ?status=cancelled: filtra por estado
   const query = { user: userId };
   if (statusFilter && ['confirmed', 'cancelled'].includes(statusFilter)) {
     query.status = statusFilter;
@@ -113,6 +130,12 @@ async function getUserRegistrations(userId, statusFilter) {
   return registrations;
 }
 
+/**
+ * Indica si un usuario tiene una inscripción confirmada en una actividad.
+ * @param {string} userId - Identificador del usuario.
+ * @param {string} eventId - Identificador de la actividad.
+ * @returns {Promise<boolean>} true si el usuario está inscrito y confirmado, false en caso contrario.
+ */
 async function getRegistrationStatus(userId, eventId) {
   if (!mongoose.Types.ObjectId.isValid(eventId)) {
     return false;
@@ -125,6 +148,13 @@ async function getRegistrationStatus(userId, eventId) {
   return Boolean(registration);
 }
 
+/**
+ * Obtiene la lista de participantes confirmados de una actividad.
+ * Solo el organizador de la actividad o un administrador pueden consultarla.
+ * @param {string} eventId - Identificador de la actividad.
+ * @param {Object} requester - Usuario que realiza la solicitud (debe tener id y role).
+ * @returns {Promise<Object>} Información de la actividad, total de participantes y lista de participantes.
+ */
 async function getEventParticipants(eventId, requester) {
   if (!mongoose.Types.ObjectId.isValid(eventId)) {
     throw ApiError.notFound('Actividad no encontrada');
@@ -164,6 +194,7 @@ async function getEventParticipants(eventId, requester) {
   };
 }
 
+// Exporta las funciones del servicio de inscripciones.
 module.exports = {
   registerToEvent,
   cancelRegistration,

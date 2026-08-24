@@ -1,7 +1,17 @@
 const dashboardService = require('../services/dashboard.service');
 
+/**
+ * Controlador que obtiene los datos del panel (dashboard) según el rol
+ * del usuario autenticado (administrador, organizador o usuario regular).
+ * Maneja GET /api/dashboard.
+ * @param {import('express').Request} req - Solicitud HTTP con el usuario autenticado en req.user.
+ * @param {import('express').Response} res - Respuesta HTTP.
+ * @param {import('express').NextFunction} next - Middleware para pasar errores al manejador de errores.
+ * @returns {Promise<void>}
+ */
 async function getDashboardData(req, res, next) {
   try {
+    // Rol del usuario autenticado, determina qué métricas se calculan
     const role = req.user.role;
     let data = {};
 
@@ -25,6 +35,7 @@ async function getDashboardData(req, res, next) {
   }
 }
 
+// Exporta el controlador del dashboard para usarlo en las rutas
 module.exports = {
   getDashboardData,
 };
